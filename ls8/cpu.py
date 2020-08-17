@@ -65,3 +65,9 @@ class CPU:
     def run(self):
         """Run the CPU."""
         pass
+
+    def ram_read(self, mar):
+        return self.ram[mar]
+
+    def ram_write(self, mdr, mar):
+        self.ram[mar] = mdr
