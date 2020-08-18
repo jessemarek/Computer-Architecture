@@ -18,6 +18,11 @@ class CPU:
         self.reg = [0] * 8
         self.pc = 0
         self.running = False
+        self.branchtable = {}
+        self.branchtable[HLT] = self.HLT
+        self.branchtable[LDI] = self.LDI
+        self.branchtable[PRN] = self.PRN
+        self.branchtable[MUL] = self.MUL
 
     def load(self):
         """Load a program into memory."""
@@ -91,6 +96,26 @@ class CPU:
 
         print()
 
+    # instruction methods
+    def HLT(self):
+        self.running = False
+
+    def LDI(self):
+        address = self.ram[self.pc + 1]
+        value = self.ram[self.pc + 2]
+        self.reg[address] = value
+
+    def PRN(self):
+        address = self.ram[self.pc + 1]
+        print(self.reg[address])
+
+    def MUL(self):
+        reg_a = self.ram[self.pc + 1]
+        reg_b = self.ram[self.pc + 2]
+        self.alu("MUL", reg_a, reg_b)
+
+    # ---------------------------------
+
     def ram_read(self, MAR):
         return self.ram[MAR]
 
@@ -102,26 +127,11 @@ class CPU:
         self.running = True
 
         while self.running:
-            self.trace()
             # instruction register
             ir = self.ram[self.pc]
 
-            if ir == HLT:
-                self.running = False
-
-            elif ir == LDI:
-                address = self.ram[self.pc + 1]
-                value = self.ram[self.pc + 2]
-                self.reg[address] = value
-
-            elif ir == PRN:
-                address = self.ram[self.pc + 1]
-                print(self.reg[address])
-
-            elif ir == MUL:
-                reg_a = self.ram[self.pc + 1]
-                reg_b = self.ram[self.pc + 2]
-                self.alu("MUL", reg_a, reg_b)
+            # lookup the instruction from the branchtable and execute it
+            self.branchtable[ir]()
 
             # move the PC dynamically based off the value in the IR at bits AA
             end_of_instruction = ir >> 6
