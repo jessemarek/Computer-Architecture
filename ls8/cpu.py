@@ -6,6 +6,7 @@ import sys
 HLT = 0b00000001
 LDI = 0b10000010
 PRN = 0b01000111
+MUL = 0b10100010
 
 
 class CPU:
@@ -23,28 +24,50 @@ class CPU:
 
         address = 0
 
-        # For now, we've just hardcoded a program:
+        if len(sys.argv) != 2:
+            print("usage: comp.py progname")
+            sys.exit(1)
 
-        program = [
-            # From print8.ls8
-            0b10000010,  # LDI R0,8
-            0b00000000,
-            0b00001000,
-            0b01000111,  # PRN R0
-            0b00000000,
-            0b00000001,  # HLT
-        ]
+        try:
+            with open(sys.argv[1]) as f:
+                for line in f:
+                    line = line.strip()
+                    temp = line.split()
 
-        for instruction in program:
-            self.ram[address] = instruction
-            address += 1
+                    if len(temp) == 0:
+                        continue
+
+                    if temp[0][0] == '#':
+                        continue
+
+                    try:
+                        self.ram[address] = int(temp[0], 2)
+
+                    except ValueError:
+                        print(f"Invalid number: {temp[0]}")
+                        sys.exit(1)
+
+                    address += 1
+
+        except FileNotFoundError:
+            print(f"Couldn't open {sys.argv[1]}")
+            sys.exit(2)
+
+        if address == 0:
+            print("Program was empty!")
+            sys.exit(3)
 
     def alu(self, op, reg_a, reg_b):
         """ALU operations."""
 
         if op == "ADD":
             self.reg[reg_a] += self.reg[reg_b]
-        # elif op == "SUB": etc
+        elif op == "SUB":
+            self.reg[reg_a] -= self.reg[reg_b]
+        elif op == "MUL":
+            self.reg[reg_a] *= self.reg[reg_b]
+        elif op == "DIV":
+            self.reg[reg_a] /= self.reg[reg_b]
         else:
             raise Exception("Unsupported ALU operation")
 
@@ -69,16 +92,17 @@ class CPU:
         print()
 
     def ram_read(self, MAR):
-        return self.reg[MAR]
+        return self.ram[MAR]
 
     def ram_write(self, MAR, MDR):
-        self.reg[MAR] = MDR
+        self.ram[MAR] = MDR
 
     def run(self):
         """Run the CPU."""
         self.running = True
 
         while self.running:
+            self.trace()
             # instruction register
             ir = self.ram[self.pc]
 
@@ -86,12 +110,19 @@ class CPU:
                 self.running = False
 
             elif ir == LDI:
-                address = self.ram[self.pc+1]
-                value = self.ram[self.pc+2]
-                self.ram_write(address, value)
-                self.pc += 3
+                address = self.ram[self.pc + 1]
+                value = self.ram[self.pc + 2]
+                self.reg[address] = value
 
             elif ir == PRN:
-                address = self.ram[self.pc+1]
-                print(self.ram_read(address))
-                self.pc += 2
+                address = self.ram[self.pc + 1]
+                print(self.reg[address])
+
+            elif ir == MUL:
+                reg_a = self.ram[self.pc + 1]
+                reg_b = self.ram[self.pc + 2]
+                self.alu("MUL", reg_a, reg_b)
+
+            # move the PC dynamically based off the value in the IR at bits AA
+            end_of_instruction = ir >> 6
+            self.pc += (end_of_instruction + 1)
