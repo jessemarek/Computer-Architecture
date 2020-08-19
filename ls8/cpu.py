@@ -7,6 +7,8 @@ HLT = 0b00000001
 LDI = 0b10000010
 PRN = 0b01000111
 MUL = 0b10100010
+PUSH = 0b01000101
+POP = 0b01000110
 
 
 class CPU:
@@ -14,15 +16,23 @@ class CPU:
 
     def __init__(self):
         """Construct a new CPU."""
-        self.ram = [0] * 256
-        self.reg = [0] * 8
-        self.pc = 0
+        self.ram = [0] * 256  # memory
+
+        self.reg = [0] * 8  # registers
+        self.reg[5]
+        self.reg[6]
+        self.reg[7] = 0xF4  # stack pointer
+
+        self.pc = 0  # program counter
         self.running = False
+
         self.branchtable = {}
         self.branchtable[HLT] = self.HLT
         self.branchtable[LDI] = self.LDI
         self.branchtable[PRN] = self.PRN
         self.branchtable[MUL] = self.MUL
+        self.branchtable[PUSH] = self.PUSH
+        self.branchtable[POP] = self.POP
 
     def load(self):
         """Load a program into memory."""
@@ -62,7 +72,7 @@ class CPU:
             print("Program was empty!")
             sys.exit(3)
 
-    def alu(self, op, reg_a, reg_b):
+    def alu(self, op, reg_a, reg_b=None):
         """ALU operations."""
 
         if op == "ADD":
@@ -73,6 +83,8 @@ class CPU:
             self.reg[reg_a] *= self.reg[reg_b]
         elif op == "DIV":
             self.reg[reg_a] /= self.reg[reg_b]
+        elif op == "INC":
+            self.reg[reg_a] += 1
         else:
             raise Exception("Unsupported ALU operation")
 
@@ -101,18 +113,30 @@ class CPU:
         self.running = False
 
     def LDI(self):
-        address = self.ram[self.pc + 1]
-        value = self.ram[self.pc + 2]
+        address = self.ram_read(self.pc + 1)
+        value = self.ram_read(self.pc + 2)
         self.reg[address] = value
 
     def PRN(self):
-        address = self.ram[self.pc + 1]
+        address = self.ram_read(self.pc + 1)
         print(self.reg[address])
 
     def MUL(self):
-        reg_a = self.ram[self.pc + 1]
-        reg_b = self.ram[self.pc + 2]
+        reg_a = self.ram_read(self.pc + 1)
+        reg_b = self.ram_read(self.pc + 2)
         self.alu("MUL", reg_a, reg_b)
+
+    def PUSH(self):
+        self.reg[7] -= 1
+        sp = self.reg[7]
+        value = self.reg[self.ram_read(self.pc + 1)]
+        self.ram_write(sp, value)
+
+    def POP(self):
+        sp = self.reg[7]
+        value = self.ram_read(sp)
+        self.reg[self.ram_read(self.pc + 1)] = value
+        self.reg[7] += 1
 
     # ---------------------------------
 
@@ -127,6 +151,7 @@ class CPU:
         self.running = True
 
         while self.running:
+            self.trace()
             # instruction register
             ir = self.ram[self.pc]
 
