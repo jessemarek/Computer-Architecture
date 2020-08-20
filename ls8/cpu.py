@@ -2,13 +2,21 @@
 
 import sys
 
-# instruction definitions
+# instruction machine codes
 HLT = 0b00000001
 LDI = 0b10000010
 PRN = 0b01000111
+ADD = 0b10100000
 MUL = 0b10100010
 PUSH = 0b01000101
 POP = 0b01000110
+ST = 0b10000100
+JMP = 0b01010100
+CALL = 0b01010000
+RET = 0b00010001
+
+# stack pointer
+SP = 7
 
 
 class CPU:
@@ -19,9 +27,7 @@ class CPU:
         self.ram = [0] * 256  # memory
 
         self.reg = [0] * 8  # registers
-        self.reg[5]
-        self.reg[6]
-        self.reg[7] = 0xF4  # stack pointer
+        self.reg[SP] = 0xF4  # stack pointer
 
         self.pc = 0  # program counter
         self.running = False
@@ -30,9 +36,14 @@ class CPU:
         self.branchtable[HLT] = self.HLT
         self.branchtable[LDI] = self.LDI
         self.branchtable[PRN] = self.PRN
+        self.branchtable[ADD] = self.ADD
         self.branchtable[MUL] = self.MUL
         self.branchtable[PUSH] = self.PUSH
         self.branchtable[POP] = self.POP
+        self.branchtable[ST] = self.ST
+        self.branchtable[JMP] = self.JMP
+        self.branchtable[CALL] = self.CALL
+        self.branchtable[RET] = self.RET
 
     def load(self):
         """Load a program into memory."""
@@ -85,6 +96,8 @@ class CPU:
             self.reg[reg_a] /= self.reg[reg_b]
         elif op == "INC":
             self.reg[reg_a] += 1
+        elif op == "DEC":
+            self.reg[reg_a] -= 1
         else:
             raise Exception("Unsupported ALU operation")
 
@@ -121,24 +134,51 @@ class CPU:
         address = self.ram_read(self.pc + 1)
         print(self.reg[address])
 
+    def ADD(self):
+        reg_a = self.ram_read(self.pc + 1)
+        reg_b = self.ram_read(self.pc + 2)
+        self.alu("ADD", reg_a, reg_b)
+
     def MUL(self):
         reg_a = self.ram_read(self.pc + 1)
         reg_b = self.ram_read(self.pc + 2)
         self.alu("MUL", reg_a, reg_b)
 
     def PUSH(self):
-        self.reg[7] -= 1
-        sp = self.reg[7]
+        self.reg[SP] -= 1
+        sp = self.reg[SP]
         value = self.reg[self.ram_read(self.pc + 1)]
         self.ram_write(sp, value)
 
     def POP(self):
-        sp = self.reg[7]
+        sp = self.reg[SP]
         value = self.ram_read(sp)
         self.reg[self.ram_read(self.pc + 1)] = value
-        self.reg[7] += 1
+        self.reg[SP] += 1
 
-    # ---------------------------------
+    def ST(self):
+        address = self.ram_read(self.pc + 1)
+        value = self.reg[self.ram_read(self.pc + 2)]
+        self.reg[address] = value
+
+    def JMP(self):
+        address = self.ram_read(self.pc + 1)
+        self.pc = self.reg[address]
+
+    def CALL(self):
+        ret_addr = self.pc + 2
+
+        self.reg[SP] -= 1
+        self.ram_write(self.reg[SP], ret_addr)
+
+        self.JMP()
+
+    def RET(self):
+        ret_addr = self.ram_read(self.reg[SP])
+
+        self.reg[SP] += 1
+        self.pc = ret_addr
+        # ---------------------------------
 
     def ram_read(self, MAR):
         return self.ram[MAR]
@@ -151,13 +191,19 @@ class CPU:
         self.running = True
 
         while self.running:
-            self.trace()
+            # self.trace()
             # instruction register
-            ir = self.ram[self.pc]
+            ir = self.ram_read(self.pc)
 
             # lookup the instruction from the branchtable and execute it
             self.branchtable[ir]()
 
-            # move the PC dynamically based off the value in the IR at bits AA
-            end_of_instruction = ir >> 6
-            self.pc += (end_of_instruction + 1)
+            instruction_sets_pc = ir & 0b00010000  # (if >> 4) & 1 works also
+            # check to see if the instruction sets the PC
+            if instruction_sets_pc:
+                continue
+            else:
+                # move the PC dynamically based off the value
+                # in the IR at bits AA
+                end_of_instruction = ir >> 6
+                self.pc += (end_of_instruction + 1)
