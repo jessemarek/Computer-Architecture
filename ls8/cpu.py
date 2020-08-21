@@ -8,15 +8,29 @@ LDI = 0b10000010
 PRN = 0b01000111
 ADD = 0b10100000
 MUL = 0b10100010
-CMP = 0b10100111
 PUSH = 0b01000101
 POP = 0b01000110
 ST = 0b10000100
+CALL = 0b01010000
+RET = 0b00010001
+# SPRINT CHALLENGE
+CMP = 0b10100111
 JMP = 0b01010100
 JEQ = 0b01010101
 JNE = 0b01010110
-CALL = 0b01010000
-RET = 0b00010001
+# SPRINT CHALLENGE STRETCH
+AND = 0b10101000
+OR = 0b10101010
+XOR = 0b10101011
+NOT = 0b01101001
+SHL = 0b10101100
+SHR = 0b10101101
+MOD = 0b10100100
+
+PRA = 0b01001000
+INC = 0b01100101
+DEC = 0b01100110
+LD = 0b10000011
 
 # stack pointer
 SP = 7
@@ -43,15 +57,29 @@ class CPU:
         self.branchtable[PRN] = self.PRN
         self.branchtable[ADD] = self.ADD
         self.branchtable[MUL] = self.MUL
-        self.branchtable[CMP] = self.CMP
         self.branchtable[PUSH] = self.PUSH
         self.branchtable[POP] = self.POP
         self.branchtable[ST] = self.ST
+        self.branchtable[CALL] = self.CALL
+        self.branchtable[RET] = self.RET
+        # SPRINT CHALLENGE
+        self.branchtable[CMP] = self.CMP
         self.branchtable[JMP] = self.JMP
         self.branchtable[JEQ] = self.JEQ
         self.branchtable[JNE] = self.JNE
-        self.branchtable[CALL] = self.CALL
-        self.branchtable[RET] = self.RET
+        # SPRINT CHALLENGE STRETCH
+        self.branchtable[AND] = self.AND
+        self.branchtable[OR] = self.OR
+        self.branchtable[XOR] = self.XOR
+        self.branchtable[NOT] = self.NOT
+        self.branchtable[SHL] = self.SHL
+        self.branchtable[SHR] = self.SHR
+        self.branchtable[MOD] = self.MOD
+
+        self.branchtable[PRA] = self.PRA
+        self.branchtable[INC] = self.INC
+        self.branchtable[DEC] = self.DEC
+        self.branchtable[LD] = self.LD
 
     def load(self):
         """Load a program into memory."""
@@ -110,6 +138,7 @@ class CPU:
             self.reg[reg_a] += 1
         elif op == "DEC":
             self.reg[reg_a] -= 1
+        # SPRINT CHALLENGE
         elif op == "CMP":
             if self.reg[reg_a] == self.reg[reg_b]:
                 self.fl = 0b00000001
@@ -117,6 +146,26 @@ class CPU:
                 self.fl = 0b00000010
             elif self.reg[reg_a] < self.reg[reg_b]:
                 self.fl = 0b00000100
+
+        # SPRINT CHALLENGE STRETCH
+        elif op == "AND":
+            self.reg[reg_a] = self.reg[reg_a] & self.reg[reg_b]
+        elif op == "OR":
+            self.reg[reg_a] = self.reg[reg_a] | self.reg[reg_b]
+        elif op == "XOR":
+            self.reg[reg_a] = self.reg[reg_a] ^ self.reg[reg_b]
+        elif op == "NOT":
+            self.reg[reg_a] = ~self.reg[reg_a]
+        elif op == "SHL":
+            self.reg[reg_a] = self.reg[reg_a] << self.reg[reg_b]
+        elif op == "SHR":
+            self.reg[reg_a] = self.reg[reg_a] >> self.reg[reg_b]
+        elif op == "MOD":
+            if reg_b == 0:
+                print("Error: Cannot divide by 0")
+                sys.exit(1)
+            else:
+                self.reg[reg_a] %= self.reg[reg_b]
         else:
             raise Exception("Unsupported ALU operation")
 
@@ -153,6 +202,10 @@ class CPU:
         address = self.ram_read(self.pc + 1)
         print(self.reg[address])
 
+    def PRA(self):
+        address = self.ram_read(self.pc + 1)
+        print(chr(self.ram_read(self.reg[address])))
+
     def ADD(self):
         reg_a = self.ram_read(self.pc + 1)
         reg_b = self.ram_read(self.pc + 2)
@@ -163,10 +216,52 @@ class CPU:
         reg_b = self.ram_read(self.pc + 2)
         self.alu("MUL", reg_a, reg_b)
 
+    def AND(self):
+        reg_a = self.ram_read(self.pc + 1)
+        reg_b = self.ram_read(self.pc + 2)
+        self.alu("AND", reg_a, reg_b)
+
+    def OR(self):
+        reg_a = self.ram_read(self.pc + 1)
+        reg_b = self.ram_read(self.pc + 2)
+        self.alu("OR", reg_a, reg_b)
+
+    def XOR(self):
+        reg_a = self.ram_read(self.pc + 1)
+        reg_b = self.ram_read(self.pc + 2)
+        self.alu("XOR", reg_a, reg_b)
+
+    def NOT(self):
+        reg_a = self.ram_read(self.pc + 1)
+        self.alu("NOT", reg_a)
+
+    def SHL(self):
+        reg_a = self.ram_read(self.pc + 1)
+        reg_b = self.ram_read(self.pc + 2)
+        self.alu("SHL", reg_a, reg_b)
+
+    def SHR(self):
+        reg_a = self.ram_read(self.pc + 1)
+        reg_b = self.ram_read(self.pc + 2)
+        self.alu("SHR", reg_a, reg_b)
+
+    def MOD(self):
+        reg_a = self.ram_read(self.pc + 1)
+        reg_b = self.ram_read(self.pc + 2)
+        self.alu("MOD", reg_a, reg_b)
+
     def CMP(self):
         reg_a = self.ram_read(self.pc + 1)
         reg_b = self.ram_read(self.pc + 2)
         self.alu("CMP", reg_a, reg_b)
+
+    def INC(self):
+        reg_a = self.ram_read(self.pc + 1)
+        self.alu("INC", reg_a)
+
+    def DEC(self):
+        reg_a = self.ram_read(self.pc + 1)
+        self.alu("DEC", reg_a)
 
     def PUSH(self):
         self.reg[SP] -= 1
@@ -219,7 +314,13 @@ class CPU:
         self.reg[SP] += 1
         self.pc = ret_addr
 
-        # ---------------------------------
+    def LD(self):
+        address = self.ram_read(self.pc + 1)
+        value = self.reg[self.ram_read(self.pc + 2)]
+
+        self.reg[address] = value
+
+    # ---------------------------------
 
     def ram_read(self, MAR):
         return self.ram[MAR]
