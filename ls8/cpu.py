@@ -8,6 +8,7 @@ LDI = 0b10000010
 PRN = 0b01000111
 ADD = 0b10100000
 MUL = 0b10100010
+CMP = 0b10100111
 PUSH = 0b01000101
 POP = 0b01000110
 ST = 0b10000100
@@ -32,12 +33,15 @@ class CPU:
         self.pc = 0  # program counter
         self.running = False
 
-        self.branchtable = {}
+        self.fl = 0b00000000  # flag register
+
+        self.branchtable = {}   # instruction lookup table
         self.branchtable[HLT] = self.HLT
         self.branchtable[LDI] = self.LDI
         self.branchtable[PRN] = self.PRN
         self.branchtable[ADD] = self.ADD
         self.branchtable[MUL] = self.MUL
+        self.branchtable[CMP] = self.CMP
         self.branchtable[PUSH] = self.PUSH
         self.branchtable[POP] = self.POP
         self.branchtable[ST] = self.ST
@@ -93,11 +97,22 @@ class CPU:
         elif op == "MUL":
             self.reg[reg_a] *= self.reg[reg_b]
         elif op == "DIV":
-            self.reg[reg_a] /= self.reg[reg_b]
+            if reg_b == 0:
+                print("Error: Cannot divide by 0")
+                sys.exit(1)
+            else:
+                self.reg[reg_a] /= self.reg[reg_b]
         elif op == "INC":
             self.reg[reg_a] += 1
         elif op == "DEC":
             self.reg[reg_a] -= 1
+        elif op == "CMP":
+            if reg_a == reg_b:
+                self.fl = 0b00000001
+            elif reg_a > reg_b:
+                self.fl = 0b00000010
+            elif reg_a < reg_b:
+                self.fl = 0b00000100
         else:
             raise Exception("Unsupported ALU operation")
 
@@ -144,6 +159,11 @@ class CPU:
         reg_b = self.ram_read(self.pc + 2)
         self.alu("MUL", reg_a, reg_b)
 
+    def CMP(self):
+        reg_a = self.ram_read(self.pc + 1)
+        reg_b = self.ram_read(self.pc + 2)
+        self.alu("CMP", reg_a, reg_b)
+
     def PUSH(self):
         self.reg[SP] -= 1
         sp = self.reg[SP]
@@ -178,6 +198,7 @@ class CPU:
 
         self.reg[SP] += 1
         self.pc = ret_addr
+
         # ---------------------------------
 
     def ram_read(self, MAR):
@@ -196,7 +217,10 @@ class CPU:
             ir = self.ram_read(self.pc)
 
             # lookup the instruction from the branchtable and execute it
-            self.branchtable[ir]()
+            if ir in self.branchtable:
+                self.branchtable[ir]()
+            else:
+                print(f"Instruction {bin(ir)} not in Branch Table")
 
             instruction_sets_pc = ir & 0b00010000  # (if >> 4) & 1 works also
             # check to see if the instruction sets the PC
