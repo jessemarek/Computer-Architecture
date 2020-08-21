@@ -13,6 +13,8 @@ PUSH = 0b01000101
 POP = 0b01000110
 ST = 0b10000100
 JMP = 0b01010100
+JEQ = 0b01010101
+JNE = 0b01010110
 CALL = 0b01010000
 RET = 0b00010001
 
@@ -46,6 +48,8 @@ class CPU:
         self.branchtable[POP] = self.POP
         self.branchtable[ST] = self.ST
         self.branchtable[JMP] = self.JMP
+        self.branchtable[JEQ] = self.JEQ
+        self.branchtable[JNE] = self.JNE
         self.branchtable[CALL] = self.CALL
         self.branchtable[RET] = self.RET
 
@@ -107,11 +111,11 @@ class CPU:
         elif op == "DEC":
             self.reg[reg_a] -= 1
         elif op == "CMP":
-            if reg_a == reg_b:
+            if self.reg[reg_a] == self.reg[reg_b]:
                 self.fl = 0b00000001
-            elif reg_a > reg_b:
+            elif self.reg[reg_a] > self.reg[reg_b]:
                 self.fl = 0b00000010
-            elif reg_a < reg_b:
+            elif self.reg[reg_a] < self.reg[reg_b]:
                 self.fl = 0b00000100
         else:
             raise Exception("Unsupported ALU operation")
@@ -184,6 +188,22 @@ class CPU:
     def JMP(self):
         address = self.ram_read(self.pc + 1)
         self.pc = self.reg[address]
+
+    def JEQ(self):
+        equal = self.fl & 0b00000001
+
+        if equal:
+            self.JMP()
+        else:
+            self.pc = self.pc + 2
+
+    def JNE(self):
+        equal = self.fl & 0b00000001
+
+        if not equal:
+            self.JMP()
+        else:
+            self.pc = self.pc + 2
 
     def CALL(self):
         ret_addr = self.pc + 2
